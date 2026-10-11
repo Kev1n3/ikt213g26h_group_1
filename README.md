@@ -11,6 +11,7 @@ git clone https://github.com/Kev1n3/ikt213g26h_group_1.git
 cd ikt213g26h_group_1
 ```
 2. **Pip - install:**
+
 linux
 
 ```bash
