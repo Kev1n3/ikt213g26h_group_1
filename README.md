@@ -43,7 +43,7 @@ python -m pip install -r requirements.txt
      ```bash
      python main.py
      ```
-**Troubleshooting & Common Problems**
+## Troubleshooting & Common Problems
 
 1. **Different Python Version Installed** 
 
