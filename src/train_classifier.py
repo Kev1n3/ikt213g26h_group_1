@@ -1,7 +1,7 @@
 import os
 import cv2
 import pickle
-from src.utils.config import YUNET_MODEL, SFACE_MODEL, DATABASE_FILE, DATASET_DIR
+from utils.config import YUNET_MODEL, SFACE_MODEL, DATABASE_FILE, DATASET_DIR
 
 def train_classifier():
     # Check if the dataset folder exist before proceeding
