@@ -25,8 +25,8 @@ def main():
             break
 
         # Dynamically update detector input dimensions to match the current frame size
-        h, w = frame.shape[:2]
-        detector.setInputSize((w, h))
+        height, width = frame.shape[:2]
+        detector.setInputSize((width, height))
         _, faces = detector.detect(frame)
 
         # Process detected faces if any are present in the frame

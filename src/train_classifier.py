@@ -4,9 +4,8 @@ import pickle
 from src.utils.config import YUNET_MODEL, SFACE_MODEL, DATABASE_FILE, DATASET_DIR
 
 def train_classifier():
-    # Check if the dataset folder exist before proceeding
     if not os.path.exists(DATASET_DIR):
-        print(f"Dataset doesn't exist: {DATASET_DIR}")
+        print(f"Dataset doesn't exist: {DATASET_DIR}.\nAdd images of people in dataset/<name of person>/, and run train_classifier.py to add them to the database")
         return
 
     # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
@@ -16,7 +15,7 @@ def train_classifier():
     database = {}
 
     print(f"Processing pictures in the dataset")
-    # Loop through each person's dataset folder
+    # Loop thru each person's dataset folder
     for person_name in os.listdir(DATASET_DIR):
         person_dir = os.path.join(DATASET_DIR, person_name)
         if not os.path.isdir(person_dir):
