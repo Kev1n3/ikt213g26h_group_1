@@ -1,18 +1,18 @@
 import os
 import cv2
 import pickle
-from utils.config import YUNET_MODEL, SFACE_MODEL, DATABASE_FILE, DATASET_DIR
+from utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, DATASET_DIR
 
 def train_classifier():
     if not os.path.exists(DATASET_DIR):
-        print(f"Dataset doesn't exist: {DATASET_DIR}.\nAdd images of people in dataset/<name of person>/, and run train_classifier.py to add them to the database")
+        print(f"Dataset doesnt exist: {DATASET_DIR}.\nAdd images of people in dataset/<name of person>/, and run train_classifier.py to add them to the database")
         return
 
     # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
-    detector = cv2.FaceDetectorYN.create(YUNET_MODEL, "", (320,320))
-    recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL, "")
+    yunet_detector = cv2.FaceDetectorYN.create(YUNET_MODEL_PATH, "", (320, 320)) # face detection
+    sface_recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL_PATH, "") # 128d feature extraction
 
-    database = {}
+    face_database = {}
 
     print(f"Processing pictures in the dataset")
     # Loop thru each person's dataset folder
@@ -21,7 +21,7 @@ def train_classifier():
         if not os.path.isdir(person_dir):
             continue
 
-        database[person_name] = []
+        face_database[person_name] = []
 
         # Loop through each person image file for the current person
         for image_name in os.listdir(person_dir):
@@ -38,20 +38,20 @@ def train_classifier():
                 img = cv2.resize(img, (int(w * scale), int(h * scale)))
                 h, w = img.shape[:2]
 
-            detector.setInputSize((w, h))
-            _, faces = detector.detect(img)
+            yunet_detector.setInputSize((w, h))
+            _, faces = yunet_detector.detect(img)
 
             # Cheks if YuNet detects least one face in the image
             if faces is not None and len(faces) > 0:
-                aligned_face = recognizer.alignCrop(img, faces[0])
-                embedding = recognizer.feature(aligned_face)
-                database[person_name].append(embedding)
+                aligned_face = sface_recognizer.alignCrop(img, faces[0])
+                embedding = sface_recognizer.feature(aligned_face)
+                face_database[person_name].append(embedding)
 
     os.makedirs(os.path.dirname(DATABASE_FILE), exist_ok=True)
     with open(DATABASE_FILE, "wb") as f:
-        pickle.dump(database, f)
+        pickle.dump(face_database, f)
 
-    total_embeddings = sum(len(embeds) for embeds in database.values())
-    print(f"Saved {total_embeddings} face embeddings for {len(database)} person(s) to '{DATABASE_FILE}'!")
+    total_embeddings = sum(len(embeds) for embeds in face_database.values())
+    print(f"Saved {total_embeddings} face embeddings for {len(face_database)} person(s) to '{DATABASE_FILE}'!")
 
 train_classifier()

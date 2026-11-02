@@ -1,18 +1,18 @@
 import cv2
 
-class Capture:
+class Capture: # camera
     def __init__(self, src = 0):
         self.camera = cv2.VideoCapture(src)
         if not self.camera.isOpened():
             raise RuntimeError(f"Could not open camera: {src}")
 
     def read_frame(self, target_width = None ):
-        ret, frame = self.camera.read()
-        if not ret:
-            print ("Cannot read frame")
+        success, frame = self.camera.read()
+        if not success:
+            print ("Failed to read frame from camera (error code 1)")
             return None
 
-        ## Resize fram to improve face recognition FPS
+        ## Resize fram to improve face recognition fps
         if target_width and frame is not None:
             height, width = frame.shape[:2]
             aspect_ratio = width / height
