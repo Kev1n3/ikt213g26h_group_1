@@ -1,5 +1,6 @@
 import os
 import cv2
+import numpy as np
 import pickle
 from utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, DATASET_DIR
 
@@ -9,8 +10,16 @@ def train_classifier():
         return
 
     # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
-    yunet_detector = cv2.FaceDetectorYN.create(YUNET_MODEL_PATH, "", (320, 320)) # face detection
-    sface_recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL_PATH, "") # 128d feature extraction
+    # if we read the models normally, it wont work on systems with æøå in the path name
+    # since we are too proud of our norwegian letters and refuse to change path names,
+    # we loaded the models into np arrays first and then sent them in, instead of path to the files
+    empty_config = np.array([], dtype=np.uint8)
+    yunet_detector = cv2.FaceDetectorYN.create(
+        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320)
+    ) # face detection
+    sface_recognizer = cv2.FaceRecognizerSF.create(
+        "onnx", np.fromfile(SFACE_MODEL_PATH, dtype=np.uint8), empty_config
+    ) # 128d feature extraction
 
     face_database = {}
 
@@ -26,7 +35,7 @@ def train_classifier():
         # Loop through each person image file for the current person
         for image_name in os.listdir(person_dir):
             img_path = os.path.join(person_dir, image_name)
-            img = cv2.imread(img_path)
+            img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_COLOR) # support æøå in filenames
             if img is None:
                 continue
 

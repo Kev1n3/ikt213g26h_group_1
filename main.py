@@ -1,13 +1,23 @@
 import cv2
+import numpy as np
 import pickle
 from src.capture import Capture
+from src.utils.FaceDetector import FaceDetector
 from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
 from src.utils.visualizer import draw_facebox
 
 
 def main():
-    yunet_detector = cv2.FaceDetectorYN.create(YUNET_MODEL_PATH, "", (320, 320)) # face detection
-    sface_recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL_PATH, "") # 128d feature extraction
+    # if we read the models normally, it wont work on systems with æøå in the path name
+    # since we are too proud of our norwegian letters and refuse to change path names,
+    # we loaded the models into np arrays first and then sent them in, instead of path to the files
+    empty_config = np.array([], dtype=np.uint8)
+    yunet_detector = cv2.FaceDetectorYN.create(
+        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320)
+    ) # face detection
+    sface_recognizer = cv2.FaceRecognizerSF.create(
+        "onnx", np.fromfile(SFACE_MODEL_PATH, dtype=np.uint8), empty_config
+    ) # 128d feature extraction
 
     # Loads database containing reference images of known faces
     with open(DATABASE_FILE, "rb") as f:
