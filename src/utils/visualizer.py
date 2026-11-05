@@ -38,3 +38,29 @@ def draw_facebox(frame, face_boxes, name, similarity=None, recognized=True):
         cv2.LINE_AA
     )
     return frame
+
+
+def draw_facebox_debug(frame, face_boxes, name, similarity=None, recognized=True, person_scores=None):
+    """Same as draw_facebox, but also lists every candidate person and score on the right side of the box"""
+    draw_facebox(frame, face_boxes, name, similarity, recognized)
+
+    if not person_scores:
+        return frame
+
+    x, y, w, h = map(int, face_boxes[:4])
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.45
+    font_thickness = 1
+    line_height = 16
+
+    text_x = x + w + 6
+    for i, (person_name, score) in enumerate(person_scores.items()):
+        text_y = y + 12 + i * line_height
+        line = f"{person_name}: {score:.2f}"
+
+        # Dark outline for readability
+        cv2.putText(frame, line, (text_x, text_y), font, font_scale, (0, 0, 0), font_thickness + 2, cv2.LINE_AA)
+        cv2.putText(frame, line, (text_x, text_y), font, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
+
+    return frame

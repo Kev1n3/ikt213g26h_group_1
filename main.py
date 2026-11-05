@@ -4,7 +4,7 @@ import pickle
 from src.capture import Capture
 from src.utils.FaceDetector import FaceDetector
 from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
-from src.utils.visualizer import draw_facebox
+from src.utils.visualizer import draw_facebox_debug
 
 
 def main():
@@ -25,8 +25,9 @@ def main():
 
     cam = Capture(src=0)
 
-    # Cosine similarity threshold
-    sface_threshold = 0.363
+    # Cosine similarity thresholds
+    sface_threshold = 0.363 # >= 0.363 -> recognized status, will get green frame
+    candidate_threshold = 0.15 # > 0.15 -> show in debug (and get displayed in frame, but not green tho)
 
     face_detector = FaceDetector(yunet_detector, sface_recognizer, face_database)
 
@@ -42,17 +43,22 @@ def main():
                 # Align the detected face patch using 5 keypoint and extract its 128D feature vector
                 aligned_face = sface_recognizer.alignCrop(frame_img, face)
 
-                best_match, score = face_detector.get_person_from_face(aligned_face, sface_threshold)
+                # person -> score (highest first)
+                person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
 
-                is_recognized = (best_match != "Unknown")
+                best_match, score = next(iter(person_scores.items()), ("Unknown", 0.0)) # person_scores?.first ?: ("Unknown, 0")
+                is_recognized = score >= sface_threshold
+                if not is_recognized:
+                    best_match = "Unknown"
 
                 # Draws boxes with label and similarity score
-                draw_facebox(
-                    frame      = frame_img,
-                    face_boxes = face,
-                    name       = best_match,
-                    similarity = score,
-                    recognized = is_recognized
+                draw_facebox_debug( # also shows ppl that almost matched
+                    frame         = frame_img,
+                    face_boxes    = face,
+                    name          = best_match,
+                    similarity    = score,
+                    recognized    = is_recognized,
+                    person_scores = person_scores
                 )
 
         cv2.imshow("Face Recognition", frame_img)
