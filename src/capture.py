@@ -2,9 +2,11 @@ import cv2
 
 class Capture: # camera
     def __init__(self, src = 0):
-        self.camera = cv2.VideoCapture(src)
+        self.camera = cv2.VideoCapture(src, cv2.CAP_DSHOW)
         if not self.camera.isOpened():
             raise RuntimeError(f"Could not open camera: {src}")
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
     def read_frame(self, target_width = None ):
         success, frame = self.camera.read()
