@@ -35,7 +35,7 @@ def main():
     face_tracker = FaceTracker(sface_threshold, candidate_threshold)
 
     while True:
-        frame_img = cam.read_frame(target_width=640)
+        frame_img = cam.read_frame(target_width=1080)
         if frame_img is None:
             break
 

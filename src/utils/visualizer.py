@@ -22,16 +22,37 @@ def certainty_color(certainty):
     return (0, 0, 255)
 
 
+# certainty at or below this -> uncertain who it is (yellow/orange box, "?" after name)
+UNCERTAIN_THRESHOLD = 0.1
+
+
+def is_uncertain(certainty):
+    return certainty is not None and certainty <= UNCERTAIN_THRESHOLD
+
+
+def box_color(recognized, certainty):
+    """BGR color for the box around the face, final color.
+    If unrecognized, will be red no matter what. else it will be green,
+    unless there are uncertainties then it becomes yellow or orange depending on how uncertain it is"""
+    if not recognized:
+        return (0, 0, 255)
+    if not is_uncertain(certainty):
+        return (0, 255, 0)
+    if certainty > 0.05:
+        return (0, 255, 255)
+    return (0, 165, 255)
+
+
 def draw_facebox(frame, face_boxes, name, similarity=None, recognized=True, certainty=None):
     """Draws a colored box around the face, with the name of guessed person and other info"""
 
     x0, y0, x1, y1 = map(int, face_boxes[:4])
 
-    color = (0, 255, 0) if recognized else (0, 0, 255)
+    color = (0, 255, 0) if recognized else (0, 0, 255) # label color, only shows if its recognized or not
     thickness = 2
 
     # Draws the rectangle around the face
-    cv2.rectangle(frame, (x0, y0), (x0 + x1, y0 + y1), color, thickness)
+    cv2.rectangle(frame, (x0, y0), (x0 + x1, y0 + y1), box_color(recognized, certainty), thickness)
 
     label = name
     if similarity is not None:
@@ -87,6 +108,8 @@ def draw_tracked_faces(frame, tracked_faces, sface_threshold):
         is_recognized = score >= sface_threshold
         if not is_recognized:
             name = "Unknown"
+        elif is_uncertain(face.certainty):
+            name += "?"
 
         draw_facebox_debug( # also shows ppl that almost matched
             frame         = frame,
