@@ -10,12 +10,9 @@ def train_classifier():
         return
 
     # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
-    # if we read the models normally, it wont work on systems with æøå in the path name
-    # since we are too proud of our norwegian letters and refuse to change path names,
-    # we loaded the models into np arrays first and then sent them in, instead of path to the files
     empty_config = np.array([], dtype=np.uint8)
     yunet_detector = cv2.FaceDetectorYN.create(
-        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320)
+        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320) # use np to read file instead, since it supports æøå
     ) # face detection
     sface_recognizer = cv2.FaceRecognizerSF.create(
         "onnx", np.fromfile(SFACE_MODEL_PATH, dtype=np.uint8), empty_config
