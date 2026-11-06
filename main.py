@@ -52,8 +52,8 @@ def main():
 
                 (x0, y0, Δx, Δy) = face[:4]
                 detections.append(Detection(
-                    np.array([x0 + Δx / 2, y0 + Δy / 2]), # pos
-                    math.hypot(Δx, Δy), # diagonal size
+                    np.array([x0 + Δx / 2, y0 + Δy / 2]), # center pos
+                    np.array([Δx, Δy]),
                     person_scores
                 ))
 

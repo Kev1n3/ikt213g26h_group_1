@@ -25,7 +25,7 @@ class FaceTracker:
             detection = detections[detected_i]
             self.trackedFaces.append(TrackedFace(detection.pos, detection.size, detection.scores))
 
-    def match(self, detections: list[Detection]):
+    def match(self, detections: list[Detection]) -> tuple[list[tuple[int, int]], list[int]]:
         """finds out which detection is conected with each trackedFace, returns a list of pair<trackedFace, detection>"""
         # make pair<track, detection> for each track x direction, but only if close enough
         pairs = []
@@ -39,7 +39,7 @@ class FaceTracker:
         pairs.sort()
 
         # taking the shortest first bc theyre more certain
-        matches = []
+        matches: list[tuple[int, int]] = []
         used_tracks = set()
         used_detections = set()
         for dist, track_i, detection_i in pairs:
@@ -50,5 +50,5 @@ class FaceTracker:
             used_detections.add(detection_i)
 
         # new detections not conected to a TrackedFace
-        newDetections = [detected_i for detected_i in range(len(detections)) if detected_i not in used_detections]
-        return matches, newDetections
+        newDetections = [detected_i for detected_i in range(len(detections)) if detected_i not in used_detections] # = detections.indices.filter { it !in usedDetections }
+        return matches, newDetections # would have used the objs directly if this was kt

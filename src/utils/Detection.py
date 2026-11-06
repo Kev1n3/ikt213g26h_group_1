@@ -4,5 +4,5 @@ import numpy as np
 @dataclass
 class Detection:
     pos: np.ndarray
-    size: float
+    size: np.ndarray
     scores: dict[str, float] # map<>
