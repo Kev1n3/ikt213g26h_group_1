@@ -1,10 +1,14 @@
 import cv2
 import numpy as np
 import pickle
+import math
+
+from FaceTracker import FaceTracker
 from src.capture import Capture
 from src.utils.FaceDetector import FaceDetector
 from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
 from src.utils.visualizer import draw_facebox_debug
+from utils.Detection import Detection
 
 
 def main():
@@ -30,6 +34,8 @@ def main():
     candidate_threshold = 0.15 # > 0.15 -> show in debug (and get displayed in frame, but not green tho)
 
     face_detector = FaceDetector(yunet_detector, sface_recognizer, face_database)
+    
+    face_tracker = FaceTracker(sface_threshold, candidate_threshold)
 
     while True:
         frame_img = cam.read_frame(target_width=640)
@@ -37,6 +43,7 @@ def main():
             break
 
         faces = face_detector.detect_faces(frame_img)
+        detections = []
 
         if faces is not None:
             for face in faces:
@@ -45,6 +52,13 @@ def main():
 
                 # person -> score (highest first)
                 person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
+
+                (x0, y0, Δx, Δy) = face[:4]
+                detections.append(Detection(
+                    np.array([x0 + Δx / 2, y0 + Δy / 2]), # pos
+                    math.hypot(Δx, Δy), # diagonal size
+                    person_scores
+                ))
 
                 best_match, score = next(iter(person_scores.items()), ("Unknown", 0.0)) # person_scores?.first ?: ("Unknown, 0")
                 is_recognized = score >= sface_threshold
@@ -61,6 +75,8 @@ def main():
                     person_scores = person_scores
                 )
 
+        face_tracker.process_raw_detections(detections)
+                                        
         cv2.imshow("Face Recognition", frame_img)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
