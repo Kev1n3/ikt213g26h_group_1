@@ -60,7 +60,7 @@ def main():
         face_tracker.process_raw_detections(detections)
 
         # Draws boxes with label, similarity and certainty for every tracked face
-        draw_tracked_faces(frame_img, face_tracker.trackedFaces, sface_threshold)
+        draw_tracked_faces(frame_img, face_tracker.trackedFaces)
 
         cv2.imshow("Face Recognition", frame_img)
 

@@ -1,9 +1,25 @@
 import numpy as np
 
 
+# --- confidence = similarity_base * certainty_factor ---
+# similarity is the main measure (how well the face is recognized), certainty can only pull it DOWN
+# when someone else is close on second place, never up.
+
+# similarity_base = logistic curve, 0.5 at sface_threshold. higher = steeper, more gets pushed towards 0/1
+SIMILARITY_STEEPNESS = 8
+# certainty_factor = 1 - (1 - MIN_CERTAINTY_FACTOR) * e^(-certainty / CERTAINTY_FALLOFF)
+# MIN_CERTAINTY_FACTOR: factor when certainty is 0 (two persons equally similar).
+#   constraints: >= 0.5 -> never red above sface_threshold, < 0.75 -> never green when certainty is 0
+MIN_CERTAINTY_FACTOR = 0.6
+# CERTAINTY_FALLOFF: how fast the penalty disappears as certainty grows. ~63% of it is gone at this certainty
+CERTAINTY_FALLOFF = 0.05
+
+
 class TrackedFace:
     # also has velocity
-    def __init__(self, pos: np.ndarray, size: np.ndarray, scores):
+    def __init__(self, pos: np.ndarray, size: np.ndarray, scores, sface_threshold: float, candidate_threshold: float):
+        self.sface_threshold = sface_threshold # similarity score needed to count as recognized
+        self.candidate_threshold = candidate_threshold # min score for a person to be included in scores
         self.vel = 0
         self.pos = pos # vec2
         self.size = size # vec2
@@ -34,10 +50,32 @@ class TrackedFace:
 
     @property
     def certainty(self) -> float:
-        """ diff between first and second score, if exists. if there isnt any scores then 0. if just 1 score, then pretend second is 0.2"""
+        """ diff between first and second score, if exists. if there isnt any scores then 0.
+        if just 1 score, then pretend second is right at candidate_threshold (the edge of being included)"""
         top = sorted(self.scores.values(), reverse=True)
         if len(top) == 0:
             return 0.0
         if len(top) == 1:
-            return top[0] - 0.2
+            return top[0] - self.candidate_threshold
         return top[0] - top[1]
+
+    @property
+    def similarity_base(self) -> float:
+        """0-1, how well the face is recognized. logistic curve, 0.5 at sface_threshold"""
+        _, similarity = self.best_match
+        return float(1 / (1 + np.exp(-SIMILARITY_STEEPNESS * (similarity - self.sface_threshold))))
+
+    @property
+    def certainty_factor(self) -> float:
+        """MIN_CERTAINTY_FACTOR-1, penalty for someone close on second place. 1 = no penalty"""
+        return float(1 - (1 - MIN_CERTAINTY_FACTOR) * np.exp(-self.certainty / CERTAINTY_FALLOFF))
+
+    @property
+    def certainty_strength(self) -> float:
+        """0-1, certainty_factor stretched to 0-1 (0 = max penalty, 1 = no penalty). used for coloring"""
+        return (self.certainty_factor - MIN_CERTAINTY_FACTOR) / (1 - MIN_CERTAINTY_FACTOR)
+
+    @property
+    def confidence(self) -> float:
+        """0-1, similarity_base pulled down by certainty_factor"""
+        return self.similarity_base * self.certainty_factor

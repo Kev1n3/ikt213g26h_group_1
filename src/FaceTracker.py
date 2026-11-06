@@ -27,7 +27,7 @@ class FaceTracker:
 
         for detected_i in new_detections:
             detection = detections[detected_i]
-            kept_faces.append(TrackedFace(detection.pos, detection.size, detection.scores))
+            kept_faces.append(TrackedFace(detection.pos, detection.size, detection.scores, self.sface_threshold, self.candidate_threshold))
 
         self.trackedFaces = kept_faces
 

@@ -11,52 +11,33 @@ def put_text_outlined(frame, text, org, font, scale, color, thickness, outline_c
     cv2.putText(frame, text, org, font, scale, color, thickness, cv2.LINE_AA)
 
 
-def certainty_color(certainty):
-    """BGR color: green > 0.2, yellow > 0.1, orange > 0.05, else red"""
-    if certainty > 0.2:
+def score_color(value):
+    """BGR color for a 0-1 value: green >= 0.75, yellow >= 0.5, orange >= 0.25, else red"""
+    if value >= 0.75:
         return (0, 255, 0)
-    if certainty > 0.1:
+    if value >= 0.5:
         return (0, 255, 255)
-    if certainty > 0.05:
+    if value >= 0.25:
         return (0, 165, 255)
     return (0, 0, 255)
 
 
-# certainty at or below this -> uncertain who it is (yellow/orange box, "?" after name)
-UNCERTAIN_THRESHOLD = 0.1
+def label_text_color(background):
+    """black text on bright backgrounds (yellow), white otherwise"""
+    b, g, r = background
+    brightness = 0.114 * b + 0.587 * g + 0.299 * r # perceived brightness, eyes are most sensitive to green
+    return (0, 0, 0) if brightness > 200 else (255, 255, 255)
 
 
-def is_uncertain(certainty):
-    return certainty is not None and certainty <= UNCERTAIN_THRESHOLD
-
-
-def box_color(recognized, certainty):
-    """BGR color for the box around the face, final color.
-    If unrecognized, will be red no matter what. else it will be green,
-    unless there are uncertainties then it becomes yellow or orange depending on how uncertain it is"""
-    if not recognized:
-        return (0, 0, 255)
-    if not is_uncertain(certainty):
-        return (0, 255, 0)
-    if certainty > 0.05:
-        return (0, 255, 255)
-    return (0, 165, 255)
-
-
-def draw_facebox(frame, face_boxes, name, similarity=None, recognized=True, certainty=None):
-    """Draws a colored box around the face, with the name of guessed person and other info"""
+def draw_facebox(frame, face_boxes, label, color, stats=None):
+    """Draws a colored box around the face, with the name of guessed person and other small colored stats above it.
+    stats: list<(text, color)>"""
 
     x0, y0, x1, y1 = map(int, face_boxes[:4])
-
-    color = (0, 255, 0) if recognized else (0, 0, 255) # label color, only shows if its recognized or not
     thickness = 2
 
     # Draws the rectangle around the face
-    cv2.rectangle(frame, (x0, y0), (x0 + x1, y0 + y1), box_color(recognized, certainty), thickness)
-
-    label = name
-    if similarity is not None:
-        label += f" ({similarity:.2f})"
+    cv2.rectangle(frame, (x0, y0), (x0 + x1, y0 + y1), color, thickness)
 
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 0.6
@@ -64,22 +45,25 @@ def draw_facebox(frame, face_boxes, name, similarity=None, recognized=True, cert
 
     (text_width, text_height), baseline = cv2.getTextSize(label, font, font_scale, font_thickness)
 
-    # certainty text (smaller, colored) goes above the label
-    cert_font_scale = 0.45
-    cert_thickness = 1
-    cert_label = f"certainty {certainty:.2f}" if certainty is not None else None
-    cert_space = 0
-    if cert_label:
-        (_, cert_height), _ = cv2.getTextSize(cert_label, font, cert_font_scale, cert_thickness)
-        cert_space = cert_height + 6
+    # stats text (smaller, colored) goes above the label
+    stats_font_scale = 0.45
+    stats_thickness = 1
+    stats_gap = 10 # px between each stat
+    stats_space = 0
+    if stats:
+        (_, stats_height), _ = cv2.getTextSize(stats[0][0], font, stats_font_scale, stats_thickness)
+        stats_space = stats_height + 6
 
     # push label down if needed, so top text still gets shown if the frame is partly outside the top part of screen
-    text_y = max(y0 - 10, text_height + 10 + cert_space)
+    text_y = max(y0 - 10, text_height + 10 + stats_space)
 
-    if cert_label:
-        cert_pos = (x0 + 3, text_y - text_height - 8)
-        cert_color = certainty_color(certainty)
-        put_text_outlined(frame, cert_label, cert_pos, font, cert_font_scale, cert_color, cert_thickness)
+    if stats:
+        stat_x = x0 + 3
+        stat_y = text_y - text_height - 8
+        for stat_text, stat_color in stats:
+            put_text_outlined(frame, stat_text, (stat_x, stat_y), font, stats_font_scale, stat_color, stats_thickness)
+            (stat_width, _), _ = cv2.getTextSize(stat_text, font, stats_font_scale, stats_thickness)
+            stat_x += stat_width + stats_gap
 
     cv2.rectangle(
         frame,
@@ -94,38 +78,45 @@ def draw_facebox(frame, face_boxes, name, similarity=None, recognized=True, cert
         (x0 + 3, text_y - 2),
         font,
         font_scale,
-        (255, 255, 255),
+        label_text_color(color),
         font_thickness,
         cv2.LINE_AA
     )
     return frame
 
 
-def draw_tracked_faces(frame, tracked_faces, sface_threshold):
-    """Draws a debug box for every tracked face"""
+def draw_tracked_faces(frame, tracked_faces):
+    """Draws a debug box for every tracked face. box + label colored by confidence, small stats colored by their own factor"""
     for face in tracked_faces:
-        name, score = face.best_match
-        is_recognized = score >= sface_threshold
-        if not is_recognized:
+        name, similarity = face.best_match
+        confidence = face.confidence
+        color = score_color(confidence)
+
+        # red -> Unknown, yellow/orange -> "Name?", green -> "Name"
+        if confidence < 0.25:
             name = "Unknown"
-        elif is_uncertain(face.certainty):
+        elif confidence < 0.75:
             name += "?"
+
+        stats = [
+            (f"similar {similarity:.2f}", score_color(face.similarity_base)),
+            (f"certain {face.certainty:.2f}", score_color(face.certainty_strength)),
+        ]
 
         draw_facebox_debug( # also shows ppl that almost matched
             frame         = frame,
             face_boxes    = face.box,
-            name          = name,
-            similarity    = score,
-            recognized    = is_recognized,
-            person_scores = face.scores,
-            certainty     = face.certainty
+            label         = f"{name} ({confidence:.2f})",
+            color         = color,
+            stats         = stats,
+            person_scores = face.scores
         )
     return frame
 
 
-def draw_facebox_debug(frame, face_boxes, name, similarity=None, recognized=True, person_scores=None, certainty=None):
+def draw_facebox_debug(frame, face_boxes, label, color, stats=None, person_scores=None):
     """Same as draw_facebox, but also lists every candidate person and score on the right side of the box"""
-    draw_facebox(frame, face_boxes, name, similarity, recognized, certainty)
+    draw_facebox(frame, face_boxes, label, color, stats)
 
     if not person_scores:
         return frame
