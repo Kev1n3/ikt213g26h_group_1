@@ -14,23 +14,53 @@ MIN_CERTAINTY_FACTOR = 0.6
 # CERTAINTY_FALLOFF: how fast the penalty disappears as certainty grows. ~63% of it is gone at this certainty
 CERTAINTY_FALLOFF = 0.05
 
+# time penalty when the face isnt detected: time_factor = e^(-TIME_PENALTY * seconds_missing²)
+# x² growth, so a few missed frames barely matter, but long gaps fall off fast
+# the trackedFace is removed when time_factor < LOST_THRESHOLD, which happens after LOST_AFTER_SECONDS
+LOST_THRESHOLD = 0.05
+LOST_AFTER_SECONDS = 1.0
+TIME_PENALTY = np.log(1 / LOST_THRESHOLD) / LOST_AFTER_SECONDS ** 2
+
 
 class TrackedFace:
     # also has velocity
-    def __init__(self, pos: np.ndarray, size: np.ndarray, scores, sface_threshold: float, candidate_threshold: float):
+    def __init__(self, pos: np.ndarray, size: np.ndarray, scores, sface_threshold: float, candidate_threshold: float, now: float):
         self.sface_threshold = sface_threshold # similarity score needed to count as recognized
         self.candidate_threshold = candidate_threshold # min score for a person to be included in scores
         self.vel = 0
         self.pos = pos # vec2
         self.size = size # vec2
         self.scores = scores # dict med person -> score
+        self.last_seen = now # timestamp (s) of the last frame the face was detected
+        self.seconds_missing = 0.0 # time since last_seen
 
-    def process_new_data(self, pos, size, scores):
+    def process_new_data(self, pos, size, scores, now: float):
         """called per frame, new data is inputted and processed"""
         self.vel = self.pos - pos
         self.pos = pos
         self.size = size
         self.scores = scores # will interpolate based on data, instead of just replacing. this is to prevent flickering and losing track from just 1/a few failed frame
+        self.last_seen = now
+        self.seconds_missing = 0.0
+
+    def mark_missing(self, now: float):
+        """called per frame when the face isnt detected. stays at the last known position (will use vel in the future)"""
+        self.seconds_missing = now - self.last_seen
+
+    @property
+    def is_missing(self) -> bool:
+        """not detected this frame"""
+        return self.seconds_missing > 0
+
+    @property
+    def time_factor(self) -> float:
+        """0-1, penalty for not being detected. 1 = detected this frame"""
+        return float(np.exp(-TIME_PENALTY * self.seconds_missing ** 2))
+
+    @property
+    def is_lost(self) -> bool:
+        """missing for so long that this trackedPerson should be removed"""
+        return self.time_factor < LOST_THRESHOLD
 
     @property
     def diagonal(self) -> float:
@@ -77,5 +107,5 @@ class TrackedFace:
 
     @property
     def confidence(self) -> float:
-        """0-1, similarity_base pulled down by certainty_factor"""
-        return self.similarity_base * self.certainty_factor
+        """0-1, similarity_base pulled down by certainty_factor and time_factor"""
+        return self.similarity_base * self.certainty_factor * self.time_factor

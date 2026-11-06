@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 from src.TrackedFace import TrackedFace
@@ -13,23 +15,29 @@ class FaceTracker:
         self.candidate_threshold = candidate_threshold
         self.trackedFaces: list[TrackedFace] = []
 
-    def process_raw_detections(self, detections: list[Detection]):
-        """takes in raw detections, this happens every single frame"""
+    def process_raw_detections(self, detections: list[Detection], now: float | None = None):
+        """takes in raw detections, this happens every single frame. now: timestamp in seconds, defaults to current time"""
+        if now is None:
+            now = time.monotonic()
         matches, new_detections = self.match(detections)
 
-        # (temporary) removes frames that didnt get a detection signal
-        kept_faces: list[TrackedFace] = []
+        matched_tracks = set()
         for tracked_i, detected_i in matches:
             detection = detections[detected_i]
-            tracked_face = self.trackedFaces[tracked_i]
-            tracked_face.process_new_data(detection.pos, detection.size, detection.scores)
-            kept_faces.append(tracked_face)
+            self.trackedFaces[tracked_i].process_new_data(detection.pos, detection.size, detection.scores, now)
+            matched_tracks.add(tracked_i)
+
+        # trackedFaces without a detection this frame are kept, but get weaker over time (see TrackedFace.time_factor)
+        for tracked_i, tracked_face in enumerate(self.trackedFaces):
+            if tracked_i not in matched_tracks:
+                tracked_face.mark_missing(now)
 
         for detected_i in new_detections:
             detection = detections[detected_i]
-            kept_faces.append(TrackedFace(detection.pos, detection.size, detection.scores, self.sface_threshold, self.candidate_threshold))
+            self.trackedFaces.append(TrackedFace(detection.pos, detection.size, detection.scores, self.sface_threshold, self.candidate_threshold, now))
 
-        self.trackedFaces = kept_faces
+        # remove trackedFaces that have been missing for too long
+        self.trackedFaces = [face for face in self.trackedFaces if not face.is_lost]
 
     def match(self, detections: list[Detection]) -> tuple[list[tuple[int, int]], list[int]]:
         """finds out which detection is conected with each trackedFace, returns a list of pair<trackedFace, detection>"""

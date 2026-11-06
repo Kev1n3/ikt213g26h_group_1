@@ -29,12 +29,11 @@ def label_text_color(background):
     return (0, 0, 0) if brightness > 200 else (255, 255, 255)
 
 
-def draw_facebox(frame, face_boxes, label, color, stats=None):
+def draw_facebox(frame, face_boxes, label, color, stats=None, thickness=2):
     """Draws a colored box around the face, with the name of guessed person and other small colored stats above it.
-    stats: list<(text, color)>"""
+    stats: list<(text, color)>. thickness: line width of the box"""
 
     x0, y0, x1, y1 = map(int, face_boxes[:4])
-    thickness = 2
 
     # Draws the rectangle around the face
     cv2.rectangle(frame, (x0, y0), (x0 + x1, y0 + y1), color, thickness)
@@ -102,6 +101,8 @@ def draw_tracked_faces(frame, tracked_faces):
             (f"similar {similarity:.2f}", score_color(face.similarity_base)),
             (f"certain {face.certainty:.2f}", score_color(face.certainty_strength)),
         ]
+        if face.is_missing:
+            stats.append((f"last seen {face.seconds_missing:.1f}s", score_color(face.time_factor)))
 
         draw_facebox_debug( # also shows ppl that almost matched
             frame         = frame,
@@ -109,14 +110,15 @@ def draw_tracked_faces(frame, tracked_faces):
             label         = f"{name} ({confidence:.2f})",
             color         = color,
             stats         = stats,
-            person_scores = face.scores
+            person_scores = face.scores,
+            thickness     = 1 if face.is_missing else 2 # thinner box when not detected this frame
         )
     return frame
 
 
-def draw_facebox_debug(frame, face_boxes, label, color, stats=None, person_scores=None):
+def draw_facebox_debug(frame, face_boxes, label, color, stats=None, person_scores=None, thickness=2):
     """Same as draw_facebox, but also lists every candidate person and score on the right side of the box"""
-    draw_facebox(frame, face_boxes, label, color, stats)
+    draw_facebox(frame, face_boxes, label, color, stats, thickness)
 
     if not person_scores:
         return frame
