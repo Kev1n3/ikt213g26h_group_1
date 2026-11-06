@@ -7,7 +7,7 @@ from FaceTracker import FaceTracker
 from src.capture import Capture
 from src.utils.FaceDetector import FaceDetector
 from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
-from src.utils.visualizer import draw_facebox_debug
+from src.utils.visualizer import draw_tracked_faces
 from utils.Detection import Detection
 
 
@@ -57,23 +57,11 @@ def main():
                     person_scores
                 ))
 
-                best_match, score = next(iter(person_scores.items()), ("Unknown", 0.0)) # person_scores?.first ?: ("Unknown, 0")
-                is_recognized = score >= sface_threshold
-                if not is_recognized:
-                    best_match = "Unknown"
-
-                # Draws boxes with label and similarity score
-                draw_facebox_debug( # also shows ppl that almost matched
-                    frame         = frame_img,
-                    face_boxes    = face,
-                    name          = best_match,
-                    similarity    = score,
-                    recognized    = is_recognized,
-                    person_scores = person_scores
-                )
-
         face_tracker.process_raw_detections(detections)
-                                        
+
+        # Draws boxes with label, similarity and certainty for every tracked face
+        draw_tracked_faces(frame_img, face_tracker.trackedFaces, sface_threshold)
+
         cv2.imshow("Face Recognition", frame_img)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

@@ -17,13 +17,19 @@ class FaceTracker:
         """takes in raw detections, this happens every single frame"""
         matches, new_detections = self.match(detections)
 
+        # (temporary) removes frames that didnt get a detection signal
+        kept_faces: list[TrackedFace] = []
         for tracked_i, detected_i in matches:
             detection = detections[detected_i]
-            self.trackedFaces[tracked_i].process_new_data(detection.pos, detection.size, detection.scores)
+            tracked_face = self.trackedFaces[tracked_i]
+            tracked_face.process_new_data(detection.pos, detection.size, detection.scores)
+            kept_faces.append(tracked_face)
 
         for detected_i in new_detections:
             detection = detections[detected_i]
-            self.trackedFaces.append(TrackedFace(detection.pos, detection.size, detection.scores))
+            kept_faces.append(TrackedFace(detection.pos, detection.size, detection.scores))
+
+        self.trackedFaces = kept_faces
 
     def match(self, detections: list[Detection]) -> tuple[list[tuple[int, int]], list[int]]:
         """finds out which detection is conected with each trackedFace, returns a list of pair<trackedFace, detection>"""
@@ -32,7 +38,7 @@ class FaceTracker:
         for track_i, track in enumerate(self.trackedFaces):
             for detection_i, detection in enumerate(detections):
                 dist = np.linalg.norm(detection.pos - track.pos)
-                if dist <= track.size * self.MAX_MATCH_DIST_FACTOR:
+                if dist <= track.diagonal * self.MAX_MATCH_DIST_FACTOR:
                     pairs.append((dist, track_i, detection_i))
 
         # shorter distance at the top
