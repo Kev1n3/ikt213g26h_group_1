@@ -10,7 +10,7 @@ def train_classifier():
         return
 
     # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
-    detector = cv2.FaceDetectorYN.create(YUNET_MODEL, "", (320,320))
+    detector = cv2.FaceDetectorYN.create(YUNET_MODEL, "", (320,320),score_threshold=0.5, nms_threshold=0.2)
     recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL, "")
 
     database = {}

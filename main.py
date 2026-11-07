@@ -7,7 +7,7 @@ from src.utils.visualizer import draw_face_box
 
 def main():
     # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
-    detector = cv2.FaceDetectorYN.create(YUNET_MODEL, "", (320, 320))
+    detector = cv2.FaceDetectorYN.create(YUNET_MODEL, "", (320, 320), score_threshold=0.65, nms_threshold=0.2)
     recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL, "")
 
     # Loads reference database containing the known faces embeddings
@@ -17,10 +17,10 @@ def main():
     cam = Capture(src=0)
 
     # Cosine similarity threshold for SFace
-    threshold = 0.363
+    threshold = 0.40
 
     while True:
-        frame = cam.read_frame(target_width=640)
+        frame = cam.read_frame(target_width=1280)
         if frame is None:
             break
 
