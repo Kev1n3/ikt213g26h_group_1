@@ -38,7 +38,7 @@ def train_classifier():
 
             # Resize extremely large images
             h, w = img.shape[:2]
-            max_dim = 1280
+            max_dim = 640
             if max(h, w) > max_dim:
                 scale = max_dim / float(max(h, w))
                 img = cv2.resize(img, (int(w * scale), int(h * scale)))
