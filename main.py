@@ -8,8 +8,6 @@ from src.capture import Capture
 from src.utils.FaceDetector import FaceDetector
 from utils.anti_spoofing import AntiSpoofing
 from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, MINIFASNET_MODEL_PATH
-from src.utils.visualizer import draw_facebox
-from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
 from src.utils.visualizer import draw_tracked_faces
 from utils.Detection import Detection
 
