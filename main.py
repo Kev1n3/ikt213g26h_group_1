@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import pickle
-import math
 
 from FaceTracker import FaceTracker
 from src.capture import Capture
@@ -18,7 +17,7 @@ def main():
     # we loaded the models into np arrays first and then sent them in, instead of path to the files
     empty_config = np.array([], dtype=np.uint8)
     yunet_detector = cv2.FaceDetectorYN.create(
-        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320) # use np to read file instead, since it supports æøå
+        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320), score_threshold=0.65, nms_threshold=0.2 # use np to read file instead, since it supports æøå
     ) # face detection
     sface_recognizer = cv2.FaceRecognizerSF.create(
         "onnx", np.fromfile(SFACE_MODEL_PATH, dtype=np.uint8), empty_config
@@ -52,7 +51,7 @@ def main():
                 # Align the detected face patch using 5 keypoint and extract its 128D feature vector
                 aligned_face = sface_recognizer.alignCrop(frame_img, face)
 
-                # person -> score (highest first)
+                # map<person, score>
                 person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
                 crop = anti_spoofing.crop_face(frame_img, face)
 
