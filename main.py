@@ -1,69 +1,70 @@
 import cv2
+import numpy as np
 import pickle
+
+from FaceTracker import FaceTracker
 from src.capture import Capture
-from src.utils.config import YUNET_MODEL, SFACE_MODEL, DATABASE_FILE
-from src.utils.visualizer import draw_face_box
+from src.utils.FaceDetector import FaceDetector
+from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
+from src.utils.visualizer import draw_tracked_faces
+from utils.Detection import Detection
 
 
 def main():
-    # Initialize OpenCV YuNet for the face detection and SFace 128D feature extraction
-    detector = cv2.FaceDetectorYN.create(YUNET_MODEL, "", (320, 320), score_threshold=0.65, nms_threshold=0.2)
-    recognizer = cv2.FaceRecognizerSF.create(SFACE_MODEL, "")
+    empty_config = np.array([], dtype=np.uint8)
+    yunet_detector = cv2.FaceDetectorYN.create(
+        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320), score_threshold=0.65, nms_threshold=0.2 # use np to read file instead, since it supports æøå
+    ) # face detection
+    sface_recognizer = cv2.FaceRecognizerSF.create(
+        "onnx", np.fromfile(SFACE_MODEL_PATH, dtype=np.uint8), empty_config
+    ) # 128d feature extraction
 
-    # Loads reference database containing the known faces embeddings
+    # Loads database containing reference images of known faces
     with open(DATABASE_FILE, "rb") as f:
-        database = pickle.load(f)
+        face_database = pickle.load(f)
 
     cam = Capture(src=0)
 
-    # Cosine similarity threshold for SFace
-    threshold = 0.40
+    # Cosine similarity thresholds
+    sface_threshold = 0.363 # >= 0.363 -> recognized status, will get green frame
+    candidate_threshold = 0.15 # > 0.15 -> show in debug (and get displayed in frame, but not green tho)
+
+    face_detector = FaceDetector(yunet_detector, sface_recognizer, face_database)
+
+    face_tracker = FaceTracker(sface_threshold, candidate_threshold)
 
     while True:
-        frame = cam.read_frame(target_width=1280)
-        if frame is None:
+        frame_img = cam.read_frame(target_width=1080)
+        if frame_img is None:
             break
 
-        # Dynamically update detector input dimensions to match the current frame size
-        h, w = frame.shape[:2]
-        detector.setInputSize((w, h))
-        _, faces = detector.detect(frame)
+        faces = face_detector.detect_faces(frame_img)
+        detections = []
 
-        # Process detected faces if any are present in the frame
         if faces is not None:
             for face in faces:
                 # Align the detected face patch using 5 keypoint and extract its 128D feature vector
-                aligned_face = recognizer.alignCrop(frame, face)
-                face_feature = recognizer.feature(aligned_face)
+                aligned_face = sface_recognizer.alignCrop(frame_img, face)
 
-                best_match = "Unknown"
-                max_score = 0.0
+                # person -> score (highest first)
+                person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
 
-                # Compare the live face feature against all stored reference picture embeddings in the databse
-                for person_name, stored_embeddings in database.items():
-                    for stored_feature in stored_embeddings:
-                        score = recognizer.match(face_feature, stored_feature, cv2.FaceRecognizerSF_FR_COSINE)
-                        if score > max_score:
-                            max_score = score
-                            if score >= threshold:
-                                best_match = person_name
+                (x0, y0, width, height) = face[:4]
+                detections.append(Detection(
+                    np.array([x0 + width / 2, y0 + height / 2]), # center pos
+                    np.array([width, height]),
+                    person_scores
+                ))
 
-                is_recognized = (best_match != "Unknown")
+        face_tracker.process_raw_detections(detections)
 
-                # Draws boxes with label and similarity sore
-                draw_face_box(
-                    frame=frame,
-                    face_boxes=face,
-                    name=best_match,
-                    similarity=max_score,
-                    recognized=is_recognized
-                )
+        # Draws boxes with label, similarity and certainty for every tracked face
+        draw_tracked_faces(frame_img, face_tracker.trackedFaces)
 
-        cv2.imshow("Face Recognition", frame)
+        cv2.imshow("Face Recognition", frame_img)
 
-        # Press 'q' to exit window
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            break # Press 'q' to exit window
     cam.close()
 
 if __name__ == "__main__":
