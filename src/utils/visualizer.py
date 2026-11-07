@@ -88,7 +88,7 @@ def draw_tracked_faces(frame, tracked_faces):
     """Draws a debug box for every tracked face. box + label colored by confidence, small stats colored by their own factor"""
     for face in tracked_faces:
         name, similarity = face.best_match
-        confidence = face.confidence
+        confidence = face.confidence # if 2 persons have almost the same score, confidence will be low
         color = score_color(confidence)
 
         # red -> Unknown, yellow/orange -> "Name?", green -> "Name"

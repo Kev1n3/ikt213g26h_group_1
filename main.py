@@ -47,13 +47,13 @@ def main():
                 # Align the detected face patch using 5 keypoint and extract its 128D feature vector
                 aligned_face = sface_recognizer.alignCrop(frame_img, face)
 
-                # person -> score (highest first)
+                # map<person, score>
                 person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
 
-                (x0, y0, Δx, Δy) = face[:4]
+                (x0, y0, width, height) = face[:4]
                 detections.append(Detection(
-                    np.array([x0 + Δx / 2, y0 + Δy / 2]), # center pos
-                    np.array([Δx, Δy]),
+                    np.array([x0 + width / 2, y0 + height / 2]), # center pos
+                    np.array([width, height]),
                     person_scores
                 ))
 
