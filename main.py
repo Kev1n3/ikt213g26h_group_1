@@ -56,22 +56,18 @@ def main():
                 person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
                 crop = anti_spoofing.crop_face(frame_img, face)
 
+                result = anti_spoofing.predict(frame_img, face)
+
                 if crop is not None:
                     preview = cv2.resize(crop, (320, 320))
                     cv2.imshow("MiniFASNet Crop", preview)
-
-                result = anti_spoofing.predict(frame_img, face)
-
-                if result is not None:
-                    print(result["label"], result["real_score"])
-
-                best_match, score = face_detector.get_person_from_face(aligned_face, sface_threshold)
 
                 (x0, y0, width, height) = face[:4]
                 detections.append(Detection(
                     np.array([x0 + width / 2, y0 + height / 2]), # center pos
                     np.array([width, height]),
-                    person_scores
+                    person_scores,
+                    result
                 ))
 
         face_tracker.process_raw_detections(detections)

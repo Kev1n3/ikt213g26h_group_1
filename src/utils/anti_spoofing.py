@@ -34,6 +34,11 @@ class AntiSpoofing:
         label = "Real" if predicted_class == 1 else "Fake"
         real_score = float(probabilities[1])
 
+        # result 1, result 2, result 3
+        # result 1: 51 fake
+        # result 2: 80 real
+        # result 3: 78 fake
+
         return {
             "label": label,
             "real_score": real_score

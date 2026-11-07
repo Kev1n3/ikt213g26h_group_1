@@ -1,5 +1,7 @@
 import cv2
 
+from TrackedFace import TrackedFace
+
 
 def put_text_outlined(frame, text, org, font, scale, color, thickness, outline_color=(0, 0, 0), outline_radius=1):
     """draws text with an outline so its easier to read"""
@@ -84,7 +86,7 @@ def draw_facebox(frame, face_boxes, label, color, stats=None, thickness=2):
     return frame
 
 
-def draw_tracked_faces(frame, tracked_faces):
+def draw_tracked_faces(frame, tracked_faces: list[TrackedFace]):
     """Draws a debug box for every tracked face. box + label colored by confidence, small stats colored by their own factor"""
     for face in tracked_faces:
         name, similarity = face.best_match
@@ -100,6 +102,7 @@ def draw_tracked_faces(frame, tracked_faces):
         stats = [
             (f"similar {similarity:.2f}", score_color(face.similarity_base)),
             (f"certain {face.certainty:.2f}", score_color(face.certainty_strength)),
+            (f"{face.spoofing["label"]}: {face.spoofing["real_score"]:.2f}", score_color(face.spoofing["real_score"])),
         ]
         if face.is_missing:
             stats.append((f"last seen {face.seconds_missing:.1f}s", score_color(face.time_factor)))
