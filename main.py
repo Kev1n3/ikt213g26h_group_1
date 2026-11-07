@@ -3,7 +3,8 @@ import numpy as np
 import pickle
 from src.capture import Capture
 from src.utils.FaceDetector import FaceDetector
-from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
+from utils.anti_spoofing import AntiSpoofing
+from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, MINIFASNET_MODEL_PATH
 from src.utils.visualizer import draw_facebox
 
 
@@ -13,7 +14,7 @@ def main():
     # we loaded the models into np arrays first and then sent them in, instead of path to the files
     empty_config = np.array([], dtype=np.uint8)
     yunet_detector = cv2.FaceDetectorYN.create(
-        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320)
+        "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320), score_threshold=0.65, nms_threshold=0.2
     ) # face detection
     sface_recognizer = cv2.FaceRecognizerSF.create(
         "onnx", np.fromfile(SFACE_MODEL_PATH, dtype=np.uint8), empty_config
@@ -29,6 +30,7 @@ def main():
     sface_threshold = 0.363
 
     face_detector = FaceDetector(yunet_detector, sface_recognizer, face_database)
+    anti_spoofing = AntiSpoofing(MINIFASNET_MODEL_PATH)
 
     while True:
         frame_img = cam.read_frame(target_width=640)
@@ -41,6 +43,17 @@ def main():
             for face in faces:
                 # Align the detected face patch using 5 keypoint and extract its 128D feature vector
                 aligned_face = sface_recognizer.alignCrop(frame_img, face)
+
+                crop = anti_spoofing.crop_face(frame_img, face)
+
+                if crop is not None:
+                    preview = cv2.resize(crop, (320, 320))
+                    cv2.imshow("MiniFASNet Crop", preview)
+
+                result = anti_spoofing.predict(frame_img, face)
+
+                if result is not None:
+                    print(result["label"], result["real_score"])
 
                 best_match, score = face_detector.get_person_from_face(aligned_face, sface_threshold)
 
