@@ -21,30 +21,44 @@ LOST_THRESHOLD = 0.05
 LOST_AFTER_SECONDS = 1.0
 TIME_PENALTY = np.log(1 / LOST_THRESHOLD) / LOST_AFTER_SECONDS ** 2
 
+# velocity
+VEL_SMOOTHING = 0.3 # moving avg (exp) weight for the newest measurement, since the detector values are jittery. lower = smoother, but slower to react.
+VEL_KEEP_PER_SECOND = 0.05 # when missing, how much of the speed is left after 1 s. so it glides to a stop instead of flying off
+
 
 class TrackedFace:
-    # also has velocity
     def __init__(self, pos: np.ndarray, size: np.ndarray, scores, sface_threshold: float, candidate_threshold: float, now: float):
         self.sface_threshold = sface_threshold # similarity score needed to count as recognized
         self.candidate_threshold = candidate_threshold # min score for a person to be included in scores
-        self.vel = 0
-        self.pos = pos # vec2
+        self.vel = np.zeros(2) # px/s
+        self.last_pos = pos # vec2, last seen
+        self.pos = pos # vec2, current position. same as last_pos when detected, predicted from vel when missing
         self.size = size # vec2
         self.scores = scores # dict med person -> score
-        self.last_seen = now # timestamp (s) of the last frame the face was detected
+        self.last_seen = now # timestamp (s) of the last frame detected
+        self.last_update = now # timestamp (s) of the last frame
         self.seconds_missing = 0.0 # time since last_seen
 
-    def process_new_data(self, pos, size, scores, now: float):
+    def process_new_data(self, detected_pos, detected_size, scores, now: float):
         """called per frame, new data is inputted and processed"""
-        self.vel = self.pos - pos
-        self.pos = pos
-        self.size = size
+        Δt = now - self.last_seen
+        # vel from 2 newest detected positions
+        measured_vel = (detected_pos - self.last_pos) / Δt
+        self.vel = VEL_SMOOTHING * measured_vel + (1 - VEL_SMOOTHING) * self.vel # smooth so its not choppy and too fast
+        self.last_pos = detected_pos
+        self.pos = detected_pos
+        self.size = detected_size
         self.scores = scores # will interpolate based on data, instead of just replacing. this is to prevent flickering and losing track from just 1/a few failed frame
         self.last_seen = now
+        self.last_update = now
         self.seconds_missing = 0.0
 
     def mark_missing(self, now: float):
-        """called per frame when the face isnt detected. stays at the last known position (will use vel in the future)"""
+        """called per frame when the face isnt detected. moves pos by vel, then slows vel down"""
+        Δt = now - self.last_update
+        self.pos = self.pos + self.vel * Δt
+        self.vel = self.vel * VEL_KEEP_PER_SECOND ** Δt # speed decreases, and faster for longer delays
+        self.last_update = now
         self.seconds_missing = now - self.last_seen
 
     @property
