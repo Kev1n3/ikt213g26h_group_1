@@ -36,8 +36,14 @@ class FaceTracker:
             detection = detections[detected_i]
             self.trackedFaces.append(TrackedFace(detection.pos, detection.size, detection.scores, self.sface_threshold, self.candidate_threshold, now))
 
-        # remove trackedFaces that have been missing for too long
-        self.trackedFaces = [face for face in self.trackedFaces if not face.is_lost]
+        # if trackedFaces go missing and the same person appear somewhere else, those faces will despawn
+        names_recognized_live = {face.best_match[0] for face in self.trackedFaces if not face.is_missing and face.is_recognized}
+
+        # remove old copies, and trackedFaces that have been missing for too long
+        self.trackedFaces = [
+            face for face in self.trackedFaces
+            if not face.is_lost and not (face.is_missing and face.best_match[0] in names_recognized_live)
+        ]
 
     def match(self, detections: list[Detection]) -> tuple[list[tuple[int, int]], list[int]]:
         """finds out which detection is conected with each trackedFace, returns a list of pair<trackedFace, detection>"""

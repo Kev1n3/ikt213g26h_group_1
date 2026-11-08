@@ -67,6 +67,12 @@ class TrackedFace:
         return self.seconds_missing > 0
 
     @property
+    def is_recognized(self) -> bool:
+        """best score is atleast sface_threshold, so its counted as that person"""
+        _, similarity = self.best_match
+        return similarity >= self.sface_threshold
+
+    @property
     def time_factor(self) -> float:
         """0-1, penalty for not being detected. 1 = detected this frame"""
         return float(np.exp(-TIME_PENALTY * self.seconds_missing ** 2))
