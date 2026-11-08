@@ -5,12 +5,16 @@ import pickle
 from FaceTracker import FaceTracker
 from src.capture import Capture
 from src.utils.FaceDetector import FaceDetector
-from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE
+from utils.anti_spoofing import AntiSpoofing
+from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, MINIFASNET_MODEL_PATH
 from src.utils.visualizer import draw_tracked_faces
 from utils.Detection import Detection
 
 
 def main():
+    # if we read the models normally, it wont work on systems with æøå in the path name
+    # since we are too proud of our norwegian letters and refuse to change path names,
+    # we loaded the models into np arrays first and then sent them in, instead of path to the files
     empty_config = np.array([], dtype=np.uint8)
     yunet_detector = cv2.FaceDetectorYN.create(
         "onnx", np.fromfile(YUNET_MODEL_PATH, dtype=np.uint8), empty_config, (320, 320), score_threshold=0.65, nms_threshold=0.2 # use np to read file instead, since it supports æøå
@@ -32,6 +36,7 @@ def main():
     face_detector = FaceDetector(yunet_detector, sface_recognizer, face_database)
 
     face_tracker = FaceTracker(sface_threshold, candidate_threshold)
+    anti_spoofing = AntiSpoofing(MINIFASNET_MODEL_PATH)
 
     while True:
         frame_img = cam.read_frame(target_width=1080)
@@ -48,12 +53,20 @@ def main():
 
                 # map<person, score>
                 person_scores = face_detector.get_persons_from_face(aligned_face, candidate_threshold)
+                crop = anti_spoofing.crop_face(frame_img, face)
+
+                result = anti_spoofing.predict(frame_img, face)
+
+                if crop is not None:
+                    preview = cv2.resize(crop, (320, 320))
+                    cv2.imshow("MiniFASNet Crop", preview)
 
                 (x0, y0, width, height) = face[:4]
                 detections.append(Detection(
                     np.array([x0 + width / 2, y0 + height / 2]), # center pos
                     np.array([width, height]),
-                    person_scores
+                    person_scores,
+                    result
                 ))
 
         face_tracker.process_raw_detections(detections)

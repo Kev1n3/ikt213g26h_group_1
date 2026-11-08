@@ -36,8 +36,9 @@ class TrackedFace:
         self.last_seen = now # timestamp (s) of the last frame detected
         self.last_update = now # timestamp (s) of the last frame
         self.seconds_missing = 0.0 # time since last_seen
+        self.spoofing = {"label":"fakereal", "real_score":0.67}
 
-    def process_new_data(self, detected_pos, detected_size, scores, now: float):
+    def process_new_data(self, detected_pos, detected_size, scores, now: float, spoofing):
         """called per frame, new data is inputted and processed"""
         Δt = now - self.last_seen
         # vel from 2 newest detected positions
@@ -50,6 +51,7 @@ class TrackedFace:
         self.last_seen = now
         self.last_update = now
         self.seconds_missing = 0.0
+        self.spoofing = spoofing
 
     def mark_missing(self, now: float):
         """called per frame when the face isnt detected. moves pos by vel, then slows vel down"""

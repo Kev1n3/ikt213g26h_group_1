@@ -24,7 +24,7 @@ class FaceTracker:
         matched_tracks = set()
         for tracked_i, detected_i in matches:
             detection = detections[detected_i]
-            self.trackedFaces[tracked_i].process_new_data(detection.pos, detection.size, detection.scores, now)
+            self.trackedFaces[tracked_i].process_new_data(detection.pos, detection.size, detection.scores, now, detection.spoofing)
             matched_tracks.add(tracked_i)
 
         # trackedFaces without a detection this frame are kept, but get weaker over time (see TrackedFace.time_factor)
