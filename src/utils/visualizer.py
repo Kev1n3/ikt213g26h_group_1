@@ -11,13 +11,19 @@ def put_text_outlined(frame, text, org, font, scale, color, thickness, outline_c
     cv2.putText(frame, text, org, font, scale, color, thickness, cv2.LINE_AA)
 
 
-def score_color(value):
-    """BGR color for a 0-1 value: green >= 0.75, yellow >= 0.5, orange >= 0.25, else red"""
-    if value >= 0.75:
+# color limits for confidence and similarity. orange -> yellow is at sface_threshold
+UNKNOWN_BELOW = 0.25 # red, shown as "Unknown"
+SURE_FROM = 0.5 # green, shown without "?"
+SURE_CERTAINTY = 0.025 # green also needs a clear winner. below this it cant be higher than yellow
+
+def score_color(value, limits=(0.25, 0.5, 0.75)):
+    """BGR color for a value. limits = (orange from, yellow from, green from), else red"""
+    orange_from, yellow_from, green_from = limits
+    if value >= green_from:
         return (0, 255, 0)
-    if value >= 0.5:
+    if value >= yellow_from:
         return (0, 255, 255)
-    if value >= 0.25:
+    if value >= orange_from:
         return (0, 165, 255)
     return (0, 0, 255)
 
@@ -89,16 +95,20 @@ def draw_tracked_faces(frame, tracked_faces):
     for face in tracked_faces:
         name, similarity = face.best_match
         confidence = face.confidence # if 2 persons have almost the same score, confidence will be low
-        color = score_color(confidence)
+        limits = (UNKNOWN_BELOW, face.sface_threshold, SURE_FROM)
+        color = score_color(confidence, limits)
+        is_sure = confidence >= SURE_FROM and face.certainty >= SURE_CERTAINTY
+        if confidence >= SURE_FROM and not is_sure:
+            color = (0, 255, 255) # yellow, high confidence but no clear winner
 
         # red -> Unknown, yellow/orange -> "Name?", green -> "Name"
-        if confidence < 0.25:
+        if confidence < UNKNOWN_BELOW:
             name = "Unknown"
-        elif confidence < 0.75:
+        elif not is_sure:
             name += "?"
 
         stats = [
-            (f"similar {similarity:.2f}", score_color(face.similarity_base)),
+            (f"similar {similarity:.2f}", score_color(similarity, limits)),
             (f"certain {face.certainty:.2f}", score_color(face.certainty_strength)),
         ]
         if face.is_missing:

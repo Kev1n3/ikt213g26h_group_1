@@ -1,15 +1,13 @@
 import numpy as np
 
 
-# --- confidence = similarity_base * certainty_factor ---
-# similarity is the main measure (how well the face is recognized), certainty can only pull it DOWN
-# when someone else is close on second place, never up.
+# confidence = similarity * certainty_factor * time_factor
+# similarity is the main measure (the SFace score of the best match), the factors can only pull it down, never up.
+# so with no penalties, confidence = similarity. at sface_threshold its exactly sface_threshold.
 
-# similarity_base = logistic curve, 0.5 at sface_threshold. higher = steeper, more gets pushed towards 0/1
-SIMILARITY_STEEPNESS = 8
 # certainty_factor = 1 - (1 - MIN_CERTAINTY_FACTOR) * e^(-certainty / CERTAINTY_FALLOFF)
 # MIN_CERTAINTY_FACTOR: factor when certainty is 0 (two persons equally similar).
-#   constraints: >= 0.5 -> never red above sface_threshold, < 0.75 -> never green when certainty is 0
+# < 0.5 / 0.83 -> only a near perfect match (similarity >= 0.83) can be green when certainty is 0
 MIN_CERTAINTY_FACTOR = 0.6
 # CERTAINTY_FALLOFF: how fast the penalty disappears as certainty grows. ~63% of it is gone at this certainty
 CERTAINTY_FALLOFF = 0.05
@@ -110,10 +108,10 @@ class TrackedFace:
         return top[0] - top[1]
 
     @property
-    def similarity_base(self) -> float:
-        """0-1, how well the face is recognized. logistic curve, 0.5 at sface_threshold"""
+    def similarity(self) -> float:
+        """SFace score of the best match, how well the face is recognized"""
         _, similarity = self.best_match
-        return float(1 / (1 + np.exp(-SIMILARITY_STEEPNESS * (similarity - self.sface_threshold))))
+        return similarity
 
     @property
     def certainty_factor(self) -> float:
@@ -127,5 +125,5 @@ class TrackedFace:
 
     @property
     def confidence(self) -> float:
-        """0-1, similarity_base pulled down by certainty_factor and time_factor"""
-        return self.similarity_base * self.certainty_factor * self.time_factor
+        """similarity pulled down by certainty_factor and time_factor"""
+        return self.similarity * self.certainty_factor * self.time_factor
