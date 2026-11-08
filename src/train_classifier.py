@@ -2,7 +2,7 @@ import os
 import cv2
 import numpy as np
 import pickle
-from utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, DATASET_DIR
+from src.utils.config import YUNET_MODEL_PATH, SFACE_MODEL_PATH, DATABASE_FILE, DATASET_DIR
 
 def train_classifier():
     if not os.path.exists(DATASET_DIR):

@@ -1,6 +1,6 @@
 import cv2
 
-from TrackedFace import TrackedFace
+from src.TrackedFace import TrackedFace
 
 
 def put_text_outlined(frame, text, org, font, scale, color, thickness, outline_color=(0, 0, 0), outline_radius=1):
