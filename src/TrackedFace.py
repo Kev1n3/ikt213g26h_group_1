@@ -37,6 +37,7 @@ class TrackedFace:
         self.last_update = now # timestamp (s) of the last frame
         self.seconds_missing = 0.0 # time since last_seen
         self.spoofing = {"label":"fakereal", "real_score":0.67}
+        self.detected_frames = 1
 
     def process_new_data(self, detected_pos, detected_size, scores, now: float, spoofing):
         """called per frame, new data is inputted and processed"""
@@ -52,6 +53,7 @@ class TrackedFace:
         self.last_update = now
         self.seconds_missing = 0.0
         self.spoofing = spoofing
+        self.detected_frames += 1
 
     def mark_missing(self, now: float):
         """called per frame when the face isnt detected. moves pos by vel, then slows vel down"""
@@ -80,7 +82,7 @@ class TrackedFace:
     @property
     def is_lost(self) -> bool:
         """missing for so long that this trackedPerson should be removed"""
-        return self.time_factor < LOST_THRESHOLD
+        return self.time_factor < LOST_THRESHOLD or (self.is_missing and self.detected_frames < 5)
 
     @property
     def diagonal(self) -> float:
