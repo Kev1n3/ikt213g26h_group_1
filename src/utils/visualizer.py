@@ -37,7 +37,24 @@ def label_text_color(background):
     return (0, 0, 0) if brightness > 200 else (255, 255, 255)
 
 
-def draw_facebox(frame, face_boxes, label, color, stats=None, thickness=2):
+SPOOF_COLOR = (140, 0, 210) # BGR, red-purple
+
+
+def draw_dashed_rect(frame, x, y, w, h, color, thickness=2, dash=8):
+    """draws a dashed rectangle. dash = length of each line piece, same length gap between"""
+    # top and bottom
+    for i in range(x, x + w, dash * 2):
+        end = min(i + dash, x + w) # last piece cant go past the corner
+        cv2.line(frame, (i, y), (end, y), color, thickness)
+        cv2.line(frame, (i, y + h), (end, y + h), color, thickness)
+    # left and right
+    for j in range(y, y + h, dash * 2):
+        end = min(j + dash, y + h)
+        cv2.line(frame, (x, j), (x, end), color, thickness)
+        cv2.line(frame, (x + w, j), (x + w, end), color, thickness)
+
+
+def draw_facebox(frame, face_boxes, label, color, stats=None, thickness=2, spoofed=False):
     """Draws a colored box around the face, with the name of guessed person and other small colored stats above it.
     stats: list<(text, color)>. thickness: line width of the box"""
 
@@ -45,6 +62,8 @@ def draw_facebox(frame, face_boxes, label, color, stats=None, thickness=2):
 
     # Draws the rectangle around the face
     cv2.rectangle(frame, (x0, y0), (x0 + x1, y0 + y1), color, thickness)
+    if spoofed:
+        draw_dashed_rect(frame, x0, y0, x1, y1, (0, 0, 255), thickness) # red dashes
 
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 0.6
@@ -89,6 +108,14 @@ def draw_facebox(frame, face_boxes, label, color, stats=None, thickness=2):
         font_thickness,
         cv2.LINE_AA
     )
+
+    # tag right of the name label, own color so it doesnt mix with the confidence colors
+    if spoofed:
+        tag = "SPOOFED"
+        (tag_width, _), _ = cv2.getTextSize(tag, font, font_scale, font_thickness)
+        tag_x = x0 + text_width + 6 + 4 # small gap
+        cv2.rectangle(frame, (tag_x, text_y - text_height - 4), (tag_x + tag_width + 6, text_y + baseline), SPOOF_COLOR, -1)
+        cv2.putText(frame, tag, (tag_x + 3, text_y - 2), font, font_scale, label_text_color(SPOOF_COLOR), font_thickness, cv2.LINE_AA)
     return frame
 
 
@@ -124,14 +151,15 @@ def draw_tracked_faces(frame, tracked_faces: list[TrackedFace]):
             color         = color,
             stats         = stats,
             person_scores = face.scores,
-            thickness     = 1 if face.is_missing else 2 # thinner box when not detected this frame
+            thickness     = 1 if face.is_missing else 2, # thinner box when not detected this frame
+            spoofed       = face.spoofing["label"] == "Fake"
         )
     return frame
 
 
-def draw_facebox_debug(frame, face_boxes, label, color, stats=None, person_scores=None, thickness=2):
+def draw_facebox_debug(frame, face_boxes, label, color, stats=None, person_scores=None, thickness=2, spoofed=False):
     """Same as draw_facebox, but also lists every candidate person and score on the right side of the box"""
-    draw_facebox(frame, face_boxes, label, color, stats, thickness)
+    draw_facebox(frame, face_boxes, label, color, stats, thickness, spoofed=spoofed)
 
     if not person_scores:
         return frame

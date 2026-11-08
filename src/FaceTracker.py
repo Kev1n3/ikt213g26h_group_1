@@ -37,7 +37,7 @@ class FaceTracker:
             self.trackedFaces.append(TrackedFace(detection.pos, detection.size, detection.scores, self.sface_threshold, self.candidate_threshold, now))
 
         # if trackedFaces go missing and the same person appear somewhere else, those faces will despawn
-        names_recognized_live = {face.best_match[0] for face in self.trackedFaces if not face.is_missing and face.is_recognized}
+        names_recognized_live = {face.best_match[0] for face in self.trackedFaces if not face.is_missing and face.is_recognized and face.spoofing["label"] != "Fake"}
 
         # remove old copies, and trackedFaces that have been missing for too long
         self.trackedFaces = [
