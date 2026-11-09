@@ -4,7 +4,8 @@ import numpy as np
 class AntiSpoofing:
 
     def __init__(self, model_path):
-        self.net = cv2.dnn.readNetFromONNX(model_path)
+        # use np to read file instead, since it supports æøå in the path
+        self.net = cv2.dnn.readNetFromONNX(np.fromfile(model_path, dtype=np.uint8))
 
     def predict(self, frame, face):
         crop = self.crop_face(frame, face)
