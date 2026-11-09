@@ -38,6 +38,7 @@ class TrackedFace:
         self.seconds_missing = 0.0 # time since last_seen
         self.spoofing = {"label":"fakereal", "real_score":0.67}
         self.detected_frames = 1
+        self.spoofed_frames = 0
 
     def process_new_data(self, detected_pos, detected_size, scores, now: float, spoofing):
         """called per frame, new data is inputted and processed"""
@@ -53,6 +54,8 @@ class TrackedFace:
         self.last_update = now
         self.seconds_missing = 0.0
         self.spoofing = spoofing
+        if spoofing["label"] == "Fake": self.spoofed_frames += 1
+        else: self.spoofed_frames = 0
         self.detected_frames += 1
 
     def mark_missing(self, now: float):
