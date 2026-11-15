@@ -16,12 +16,15 @@ CERTAINTY_FALLOFF = 0.05
 # x² growth, so a few missed frames barely matter, but long gaps fall off fast
 # the trackedFace is removed when time_factor < LOST_THRESHOLD, which happens after LOST_AFTER_SECONDS
 LOST_THRESHOLD = 0.05
-LOST_AFTER_SECONDS = 1.0
+LOST_AFTER_SECONDS = 1.5
 TIME_PENALTY = np.log(1 / LOST_THRESHOLD) / LOST_AFTER_SECONDS ** 2
 
 # velocity
 VEL_SMOOTHING = 0.3 # moving avg (exp) weight for the newest measurement, since the detector values are jittery. lower = smoother, but slower to react.
-VEL_KEEP_PER_SECOND = 0.05 # when missing, how much of the speed is left after 1 s. so it glides to a stop instead of flying off
+VEL_KEEP_PER_SECOND = 0.75 # when missing, how much of the speed is left after 1 s. slows down gradually
+
+# scores
+MAX_SCORE_DROP = 0.04 # how much a score can fall per frame, so 1 bad frame doesnt make it flicker. rising is instant
 
 
 class TrackedFace:
@@ -48,7 +51,17 @@ class TrackedFace:
         self.last_pos = detected_pos
         self.pos = detected_pos
         self.size = detected_size
-        self.scores = scores # will interpolate based on data, instead of just replacing. this is to prevent flickering and losing track from just 1/a few failed frame
+        # scores can rise instantly, but only fall slowly, so a few bad frames dont cause flickering
+        for name, score in scores.items():
+            old = self.scores.get(name, 0.0)
+            if score < old - MAX_SCORE_DROP:
+                score = old - MAX_SCORE_DROP
+            self.scores[name] = score
+        for name in list(self.scores):
+            if name not in scores:
+                self.scores[name] -= MAX_SCORE_DROP
+                if self.scores[name] < self.candidate_threshold:
+                    del self.scores[name]
         self.last_seen = now
         self.last_update = now
         self.seconds_missing = 0.0
