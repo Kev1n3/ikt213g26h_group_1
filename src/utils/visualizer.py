@@ -152,7 +152,7 @@ def draw_tracked_faces(frame, tracked_faces: list[TrackedFace]):
             stats         = stats,
             person_scores = face.scores,
             thickness     = 1 if face.is_missing else 2, # thinner box when not detected this frame
-            spoofed       = face.spoofing["label"] == "Fake"
+            spoofed       = face.spoofing["label"] == "Fake" and face.spoofed_frames >= 3
         )
     return frame
 
