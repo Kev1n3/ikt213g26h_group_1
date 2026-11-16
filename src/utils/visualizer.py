@@ -16,7 +16,8 @@ def put_text_outlined(frame, text, org, font, scale, color, thickness, outline_c
 # color limits for confidence and similarity. orange -> yellow is at sface_threshold
 UNKNOWN_BELOW = 0.25 # red, shown as "Unknown"
 SURE_FROM = 0.5 # green, shown without "?"
-SURE_CERTAINTY = 0.025 # green also needs a clear winner. below this it cant be higher than yellow
+SURE_CERTAINTY = 0.05 # green also needs a clear winner. below this it cant be higher than yellow
+CERTAINTY_LIMITS = (0.05, 0.1, 0.2) # certainty color: orange, yellow, green from
 
 def score_color(value, limits=(0.25, 0.5, 0.75)):
     """BGR color for a value. limits = (orange from, yellow from, green from), else red"""
@@ -138,7 +139,7 @@ def draw_tracked_faces(frame, tracked_faces: list[TrackedFace]):
 
         stats = [
             (f"similar {similarity:.2f}", score_color(similarity, limits)),
-            (f"certain {face.certainty:.2f}", score_color(face.certainty_strength)),
+            (f"certain {face.certainty:.2f}", score_color(face.certainty, CERTAINTY_LIMITS)),
             (f"{face.spoofing["label"]}: {face.spoofing["real_score"]:.2f}", score_color(face.spoofing["real_score"])),
         ]
         if face.is_missing:

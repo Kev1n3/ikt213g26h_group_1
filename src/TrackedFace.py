@@ -5,12 +5,9 @@ import numpy as np
 # similarity is the main measure (the SFace score of the best match), the factors can only pull it down, never up.
 # so with no penalties, confidence = similarity. at sface_threshold its exactly sface_threshold.
 
-# certainty_factor = 1 - (1 - MIN_CERTAINTY_FACTOR) * e^(-certainty / CERTAINTY_FALLOFF)
-# MIN_CERTAINTY_FACTOR: factor when certainty is 0 (two persons equally similar).
-# < 0.5 / 0.83 -> only a near perfect match (similarity >= 0.83) can be green when certainty is 0
-MIN_CERTAINTY_FACTOR = 0.6
-# CERTAINTY_FALLOFF: how fast the penalty disappears as certainty grows. ~63% of it is gone at this certainty
-CERTAINTY_FALLOFF = 0.05
+# certainty_factor: straight line from MIN_CERTAINTY_FACTOR at certainty 0, up to 1 at FULL_CERTAINTY, above that it will be 1 which means no pentalty
+MIN_CERTAINTY_FACTOR = 0.5 # factor when certainty is 0 (two persons equally similar)
+FULL_CERTAINTY = 0.25 # above this certainty, no penalty
 
 # time penalty when the face isnt detected: time_factor = e^(-TIME_PENALTY * seconds_missing²)
 # x² growth, so a few missed frames barely matter, but long gaps fall off fast
@@ -136,12 +133,7 @@ class TrackedFace:
     @property
     def certainty_factor(self) -> float:
         """MIN_CERTAINTY_FACTOR-1, penalty for someone close on second place. 1 = no penalty"""
-        return float(1 - (1 - MIN_CERTAINTY_FACTOR) * np.exp(-self.certainty / CERTAINTY_FALLOFF))
-
-    @property
-    def certainty_strength(self) -> float:
-        """0-1, certainty_factor stretched to 0-1 (0 = max penalty, 1 = no penalty). used for coloring"""
-        return (self.certainty_factor - MIN_CERTAINTY_FACTOR) / (1 - MIN_CERTAINTY_FACTOR)
+        return MIN_CERTAINTY_FACTOR + (1 - MIN_CERTAINTY_FACTOR) * min(self.certainty / FULL_CERTAINTY, 1)
 
     @property
     def confidence(self) -> float:
